@@ -86,6 +86,49 @@ class GitHub extends AppSource {
           const SizedBox(height: 4),
         ],
       ),
+
+      // <-- new
+      GeneratedFormTextField(
+        'GHProxyPrefix',
+        label: tr('GHProxyPrefix'),
+        hint: 'gh.llkk.cc',
+        required: false,
+        additionalValidators: [
+          (value) {
+            try {
+              if (value != null && Uri.parse(value).scheme.isNotEmpty) {
+                throw true;
+              }
+              if (value != null) {
+                Uri.parse('https://${value}/https://api.github.com');
+              }
+            } catch (e) {
+              return tr('invalidInput');
+            }
+            return null;
+          },
+        ],
+        belowWidgets: [
+          const SizedBox(height: 4),
+          GestureDetector(
+            onTap: () {
+              launchUrlString(
+                'https://github.akams.cn/',
+                mode: LaunchMode.externalApplication,
+              );
+            },
+            child: Text(
+              tr('about'),
+              style: const TextStyle(
+                decoration: TextDecoration.underline,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+        ],
+      ),
+      // --->
     ];
 
     additionalSourceAppSpecificSettingFormItems = [
@@ -190,11 +233,20 @@ class GitHub extends AppSource {
       '/app/build.gradle',
       'android/app/build.gradle',
       'src/app/build.gradle',
+      '/app/build.gradle.kts',
+      'android/app/build.gradle.kts',
+      'src/app/build.gradle.kts',
     ];
+    SettingsProvider settingsProvider = SettingsProvider();
+    await settingsProvider.initializeSettings();
+    var sourceConfigSettingValues = await getSourceConfigValues(
+      additionalSettings,
+      settingsProvider,
+    );
     for (var path in possibleBuildGradleLocations) {
       try {
         var res = await sourceRequest(
-          '${await convertStandardUrlToAPIUrl(standardUrl, additionalSettings)}/contents/$path',
+          '${await convertStandardUrlToAPIUrl(standardUrl, additionalSettings)}/contents/$path'.notFoundAndAppendHost(sourceConfigSettingValues['GHProxyPrefix']),
           additionalSettings,
         );
         if (res.statusCode == 200) {
@@ -211,12 +263,13 @@ class GitHub extends AppSource {
             var appIds = trimmedLines.where(
               (l) =>
                   l.startsWith('applicationId "') ||
-                  l.startsWith('applicationId \''),
+                  l.startsWith('applicationId \'')
+                      || l.startsWith('applicationId =')
+
+              ,
             );
             appIds = appIds.map(
-              (appId) => appId.split(
-                appId.startsWith('applicationId "') ? '"' : '\'',
-              )[1],
+              (appId) => RegExp(r"""(applicationId|namespace)\s*[=]?\s*["']([^"'\s]+)["']""").firstMatch(appId)?.group(2) ??"",
             );
             appIds = appIds
                 .map((appId) {
@@ -377,7 +430,7 @@ class GitHub extends AppSource {
     if (verifyLatestTag) {
       var temp = requestUrl.split('?');
       Response res = await sourceRequest(
-        '${temp[0]}/latest${temp.length > 1 ? '?${temp.sublist(1).join('?')}' : ''}',
+        '${temp[0]}/latest${temp.length > 1 ? '?${temp.sublist(1).join('?')}' : ''}'.notFoundAndAppendHost(sourceConfigSettingValues['GHProxyPrefix']),
         additionalSettings,
       );
       if (res.statusCode != 200) {
@@ -388,7 +441,7 @@ class GitHub extends AppSource {
       }
       latestRelease = jsonDecode(res.body);
     }
-    Response res = await sourceRequest(requestUrl, additionalSettings);
+    Response res = await sourceRequest(requestUrl.notFoundAndAppendHost(sourceConfigSettingValues['GHProxyPrefix']), additionalSettings);
     if (res.statusCode == 200) {
       var releases = jsonDecode(res.body) as List<dynamic>;
       if (latestRelease != null) {
@@ -698,7 +751,10 @@ class GitHub extends AppSource {
     Function(Response)? onHttpErrorCode,
     Map<String, dynamic> querySettings = const {},
   }) async {
-    Response res = await sourceRequest(requestUrl, {});
+    var sp = SettingsProvider();
+    await sp.initializeSettings();
+    var sourceConfigSettingValues = await getSourceConfigValues({}, sp);
+    Response res = await sourceRequest(requestUrl.notFoundAndAppendHost(sourceConfigSettingValues['GHProxyPrefix']), {});
     if (res.statusCode == 200) {
       int minStarCount = querySettings['minStarCount'] != null
           ? int.parse(querySettings['minStarCount'])
@@ -732,6 +788,9 @@ class GitHub extends AppSource {
   ) => reqUrl.replaceFirst(
     'https://${sourceConfigSettingValues['GHReqPrefix']}/',
     '',
+  ).replaceFirst(
+    'https://${sourceConfigSettingValues['GHProxyPrefix']}/',
+    '',
   );
 
   @override
@@ -744,14 +803,14 @@ class GitHub extends AppSource {
     var sourceConfigSettingValues = await getSourceConfigValues({}, sp);
     var results = await searchCommon(
       query,
-      '${await getAPIHost({})}/search/repositories?q=${Uri.encodeQueryComponent(query)}&per_page=100',
+      '${await getAPIHost({})}/search/repositories?q=${Uri.encodeQueryComponent(query)}&per_page=100'.notFoundAndAppendHost(sourceConfigSettingValues['GHProxyPrefix']),
       'items',
       onHttpErrorCode: (Response res) {
         rateLimitErrorCheck(res);
       },
       querySettings: querySettings,
     );
-    if ((sourceConfigSettingValues['GHReqPrefix'] ?? '').isNotEmpty) {
+    if ((sourceConfigSettingValues['GHReqPrefix'] ?? '').isNotEmpty || (sourceConfigSettingValues['GHProxyPrefix'] ?? '').isNotEmpty) {
       Map<String, List<String>> results2 = {};
       results.forEach((k, v) {
         results2[undoGHProxyMod(k, sourceConfigSettingValues)] = v;
@@ -769,5 +828,46 @@ class GitHub extends AppSource {
             .round(),
       );
     }
+  }
+
+  @override
+  Future<String> assetUrlPrefetchModifier(
+      String assetUrl,
+      String standardUrl,
+      Map<String, dynamic> additionalSettings,
+      ) async {
+    var sp = SettingsProvider();
+    await sp.initializeSettings();
+    var sourceConfigSettingValues = await getSourceConfigValues(additionalSettings, sp);
+    return assetUrl.notFoundAndAppendHost(sourceConfigSettingValues['GHProxyPrefix']);
+  }
+}
+
+extension StringExtension on String? {
+  bool get isNull => this == null;
+  bool get isNullOrEmpty => this == null || this?.trim() == "";
+  bool get isNotNullOrEmpty => this != null && this?.trim() != "";
+
+  String notFoundAndAppendHost(String? host) {
+    if(isNullOrEmpty) {
+      return "";
+    }
+    var tmp = this ?? "";
+    if(host.isNullOrEmpty){
+      return tmp;
+    }
+
+    return notFoundAndReplace("https://", "https://$host/https://");
+  }
+
+  String notFoundAndReplace(String from, String to) {
+    if(isNullOrEmpty) {
+      return "";
+    }
+    var tmp = this ?? "";
+    if(tmp.contains(to)) {
+      return tmp;
+    }
+    return tmp.replaceFirst(from, to);
   }
 }
