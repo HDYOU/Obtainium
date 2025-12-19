@@ -62,6 +62,7 @@ jobs:
           TAG="v$VERSION"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
+
       - name: Build APKs
         run:
 #          sed -i 's/signingConfig = signingConfigs.getByName("release")//g' android/app/build.gradle.kts
