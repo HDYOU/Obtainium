@@ -63,7 +63,7 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Build APKs
-        run: |
+        run:
 #          sed -i 's/signingConfig = signingConfigs.getByName("release")//g' android/app/build.gradle.kts
 #          flutter build apk --flavor normal && flutter build apk --split-per-abi --flavor normal
           flutter build apk --split-per-abi --flavor normal
