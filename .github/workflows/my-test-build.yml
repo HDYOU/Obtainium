@@ -97,7 +97,7 @@ jobs:
         with:
           tag_name: "${{ steps.extract_version.outputs.tag }}"
           name: "${{ steps.extract_version.outputs.tag }}"
-          body: "${{ fromJson(steps.extract_version.outputs.content).version_desc }}"
+#          body: "${{ steps.extract_version.outputs.content.version_desc }}"
           prerelease: "${{ steps.extract_version.outputs.beta }}"
           token: ${{ secrets.GITHUB_TOKEN }}
           files: build/app/outputs/flutter-apk/*
