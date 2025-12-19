@@ -84,14 +84,30 @@ jobs:
           custom_tag: "${{ steps.extract_version.outputs.tag }}"
           tag_prefix: ""
 
-      - name: Create Draft Release
-        uses: ncipollo/release-action@v1
+#      - name: Create Draft Release
+#        uses: ncipollo/release-action@v1
+#        with:
+#          token: ${{ secrets.GITHUB_TOKEN }}
+#          tag: "${{ steps.extract_version.outputs.tag }}"
+#          prerelease: "${{ steps.extract_version.outputs.beta }}"
+#          draft: "true"
+#          generateReleaseNotes: true
+
+      #上传至Release
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag: "${{ steps.extract_version.outputs.tag }}"
+          tag_name: "${{ steps.extract_version.outputs.tag }}"
+          name: "${{ steps.extract_version.outputs.tag }}"
+          body: "${{ fromJson(steps.extract_version.outputs.content).version_desc }}"
           prerelease: "${{ steps.extract_version.outputs.beta }}"
-          draft: "true"
-          generateReleaseNotes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: build/app/outputs/flutter-apk/*
+          draft: "false"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: echo "🍏 This job's status is ${{ job.status }}."
 
       - name: Delete workflow runs
         uses: Mattraks/delete-workflow-runs@v2
