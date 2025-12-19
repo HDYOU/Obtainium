@@ -814,7 +814,7 @@ abstract class AppSource {
       GeneratedFormSwitch(
         'allowInsecure',
         label: tr('allowInsecure'),
-        defaultValue: false,
+        defaultValue: true,
       ),
     ],
     [
