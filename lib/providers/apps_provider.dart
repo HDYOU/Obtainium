@@ -317,7 +317,7 @@ Future<File> downloadFile(
   fileName = fileNameHasExt
       ? fileName
       : fileName.split('/').last; // Ensure the fileName is a file name
-  File downloadedFile = File('$destDir/$fileName.$ext');
+  File downloadedFile = File('$destDir/$fileName(${DateTime.now().millisecondsSinceEpoch ~/ 1000}).$ext');
   if (fileNameHasExt) {
     // If the user says the filename already has an ext, ignore whatever you inferred from above
     downloadedFile = File('$destDir/$fileName');
