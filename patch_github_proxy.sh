@@ -108,7 +108,7 @@ sed -i '/reqUrl.replaceFirst/a\
 echo "⇒ 设置sourceConfigSettingValues"
 if ! grep -q "getSourceConfigSettingValues" "$FILE"; then
 sed -i '/rateLimitErrorCheck.*{/i\
-  Future<Map> getSourceConfigSettingValues() {\
+  Future<Map> getSourceConfigSettingValues() async {\
     var sp = SettingsProvider();\
     await sp.initializeSettings();\
     var sourceConfigSettingValues = await getSourceConfigValues({}, sp);\
