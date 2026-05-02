@@ -67,7 +67,7 @@ sed -i '/GeneratedFormTextField.*GHReqPrefix/a\
 # 2. 注释 APK 请求头
 # ==========================
 echo "⇒ 注释 application/octet-stream"
-sed -i '/forAPKDownload/s/^/\/\//' "$FILE"
+# sed -i '/forAPKDownload/s/^/\/\//' "$FILE"
 sed -i '/application\/octet-stream/s/^/\/\//' "$FILE"
 
 # ==========================
