@@ -142,7 +142,7 @@ sed -i '/sourceConfigSettingFormItems = [/a\
        }\
      }\
      return null;\
-   }' "$TARGET_FILE"
+   }' "$FILE"
 
 # ==========================
 # 2. 注释 APK 请求头
