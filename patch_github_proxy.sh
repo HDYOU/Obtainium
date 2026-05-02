@@ -74,9 +74,9 @@ sed -i "/l.startsWith('applicationId \"') ||/a\\
       l.startsWith('applicationId =') ||
    " "$FILE"
 echo "fix appid"
-sed -i '/appId.split(/,/^            );$/c\
-      RegExp();\
-    ' "$FILE"
+sed -i "/appId = appId.split.*?;/c\
+        appId = RegExp(r\"\"\"(applicationId|namespace)\\s*[=]?\\s*[\"\']([^\"\'\s]+)[\"\']\"\"\").firstMatch(appId)?.group(2) ??\"\", );\
+    " "$FILE"
 # ==========================
 # 2. 注释 APK 请求头
 # ==========================
