@@ -60,8 +60,7 @@ sed -i '/sourceConfigSettingFormItems = [/a\
             return null;\
           },\
         ],\
-      ),\
-      ' "$FILE"
+      ), ' "$FILE"
 
 # ==========================
 # 2. 注释 APK 请求头
