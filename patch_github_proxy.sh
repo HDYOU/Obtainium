@@ -121,8 +121,8 @@ fi
 # ==========================
 echo "⇒ API 请求自动加代理"
 #sed -i 's/apiUrl/&.notFoundAndAppendHost((await getSourceConfigSettingValues())\[\"GHProxyPrefix\"\])/g' "$FILE"
-sed -i 's/sourceRequest\([^,]+/&.notFoundAndAppendHost((await getSourceConfigSettingValues())\[\"GHProxyPrefix\"\])/g' "$FILE"
-sed -i 's/Component\(query\)}\&per_page=100[^,]+/&.notFoundAndAppendHost((await getSourceConfigSettingValues())\[\"GHProxyPrefix\"\])/g' "$FILE"
+sed -i 's/sourceRequest[^,]+/&.notFoundAndAppendHost((await getSourceConfigSettingValues())\[\"GHProxyPrefix\"\])/g' "$FILE"
+sed -i 's/per_page=100[^,]+/&.notFoundAndAppendHost((await getSourceConfigSettingValues())\[\"GHProxyPrefix\"\])/g' "$FILE"
 
 # ==========================
 # 6. 下载代理方法
