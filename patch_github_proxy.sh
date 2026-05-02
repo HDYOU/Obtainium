@@ -18,7 +18,7 @@ echo "✅ 已备份原文件"
 # 1. 添加 GHProxyPrefix + GHProxyDownloadPrefix
 # ==========================
 echo "⇒ 添加双代理配置项"
-sed -i '/sourceConfigSettingFormItems = [/a\
+sed -i '/sourceConfigSettingFormItems.*[/a\
       GeneratedFormTextField(\
         "GHProxyPrefix",\
         label: tr("GHProxyPrefix"),\
