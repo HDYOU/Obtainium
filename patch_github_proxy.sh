@@ -70,11 +70,11 @@ sed -i '/possibleBuildGradleLocations = \[/a\
       "src/app/build.gradle.kts",\
    ' "$FILE"
 echo "fix applicationId"
-sed -i 'l.startsWith\(\'applicationId "\'\) ||/a\
-      l.startsWith(\'applicationId =\') ||
-   ' "$FILE"
+sed -i "/l.startsWith('applicationId \"') ||/a\\
+      l.startsWith('applicationId =') ||
+   " "$FILE"
 echo "fix appid"
-sed -i '/appId.split/,/^            );$/c\
+sed -i '/appId.split(/,/^            );$/c\
       RegExp(r"""(applicationId|namespace)\s*[=]?\s*["\']([^"\'\s]+)["\']""").firstMatch(appId)?.group(2) ??"", );\
     ' "$FILE"
 # ==========================
