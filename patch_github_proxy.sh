@@ -146,3 +146,5 @@ EOF
 fi
 
 echo -e "\n🎉 所有补丁已完成（包含URL顺序修复）"
+
+cat "$FILE"
