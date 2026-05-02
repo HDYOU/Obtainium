@@ -18,8 +18,7 @@ echo "✅ 已备份原文件"
 # 1. 添加 GHProxyPrefix + GHProxyDownloadPrefix
 # ==========================
 echo "⇒ 添加双代理配置项"
-sed -i '/GeneratedFormTextField.*GHReqPrefix/a\
-      ),\
+sed -i '/sourceConfigSettingFormItems = [/a\
       GeneratedFormTextField(\
         "GHProxyPrefix",\
         label: tr("GHProxyPrefix"),\
@@ -61,7 +60,89 @@ sed -i '/GeneratedFormTextField.*GHReqPrefix/a\
             return null;\
           },\
         ],\
-      ),' "$FILE"
+      ),\
+      ' "$FILE"
+
+# ==============================================
+ # 2. 替换 tryInferringAppId 逻辑
+ # ==============================================
+ echo "⇒ 替换 tryInferringAppId 逻辑 "
+ sed -i '/Future<String?> tryInferringAppId/,/^  }$/c\
+   @override\
+   Future<String?> tryInferringAppId(\
+     String standardUrl, {\
+     Map<String, dynamic> additionalSettings = const {},\
+   }) async {\
+     const possibleBuildGradleLocations = [\
+       '\''/app/build.gradle'\'','\
+       '\''android/app/build.gradle'\'','\
+       '\''src/app/build.gradle'\'','\
+       '\''/app/build.gradle.kts'\'','\
+       '\''android/app/build.gradle.kts'\'','\
+       '\''src/app/build.gradle.kts'\'','\
+     ];\
+     SettingsProvider settingsProvider = SettingsProvider();\
+     await settingsProvider.initializeSettings();\
+     var sourceConfigSettingValues = await getSourceConfigValues(\
+       additionalSettings,\
+       settingsProvider,\
+     );\
+     for (var path in possibleBuildGradleLocations) {\
+       try {\
+         var res = await sourceRequest(\
+           '\''${await convertStandardUrlToAPIUrl(standardUrl, additionalSettings)}/contents/$path'\'\''.notFoundAndAppendHost(sourceConfigSettingValues['\''GHProxyPrefix'\'']),\
+           additionalSettings,\
+         );\
+         if (res.statusCode == 200) {\
+           try {\
+             var body = jsonDecode(res.body);\
+             var trimmedLines = utf8\
+                 .decode(\
+                   base64.decode(\
+                     body['\''content'\''].toString().split('\''\n'\'').join('\'''\''),\
+                   ),\
+                 )\
+                 .split('\''\n'\'')\
+                 .map((e) => e.trim());\
+             var appIds = trimmedLines.where(\
+               (l) =>\
+                   l.startsWith('\''applicationId "'\'') ||\
+                   l.startsWith('\''applicationId \''\'') || l.startsWith('\''applicationId ='\'')\
+               ,\
+             );\
+             appIds = appIds.map(\
+               (appId) => RegExp(r''''''(applicationId|namespace)\\s*[=]?\\s*["'"']([^"'"'\\s]+)["'"']''''''').firstMatch(appId)?.group(2) ??'''',\
+             );\
+             appIds = appIds\
+                 .map((appId) {\
+                   if (appId.startsWith('\''${'\'') && appId.endsWith('\''}'\'') {\
+                     appId = trimmedLines\
+                         .where(\
+                           (l) => l.startsWith(\
+                             '\''def ${appId.substring(2, appId.length - 1)}'\'','\
+                           ),\
+                         )\
+                         .first;\
+                     appId = appId.split(appId.contains('\''"'\'') ? '\''"'\'': '\''\'\'')[1];\
+                   }\
+                   return appId;\
+                 })\
+                 .where((appId) => appId.isNotEmpty);\
+             if (appIds.length == 1) {\
+               return appIds.first;\
+             }\
+           } catch (err) {\
+             LogsProvider().add(\
+               '\''Error parsing build.gradle from ${res.request!.url.toString()}: ${err.toString()}'\'','\
+             );\
+           }\
+         }\
+       } catch (err) {\
+         // Ignore - ID will be extracted from the APK\
+       }\
+     }\
+     return null;\
+   }' "$TARGET_FILE"
 
 # ==========================
 # 2. 注释 APK 请求头
@@ -80,17 +161,14 @@ sed -i 's/(e\['\''url'\''] ?? e\['\''browser_download_url'\''])/(e['\''browser_d
 # 4. 增强 undoGHProxyMod
 # ==========================
 echo "⇒ 升级代理还原方法"
-sed -i '/undoGHProxyMod/,/^  }/c\
-  undoGHProxyMod(\
-    String reqUrl,\
-    Map<String, String> sourceConfigSettingValues,\
-  ) => reqUrl.replaceFirst(\
-    "https://${sourceConfigSettingValues["GHReqPrefix"]}/",\
-    ""\
-  ).replaceFirst(\
+sed -i '/reqUrl.replaceFirst/a\
     "https://${sourceConfigSettingValues["GHProxyPrefix"]}/",\
     ""\
-  );' "$FILE"
+  ).replaceFirst(\
+    "https://${sourceConfigSettingValues["GHProxyDownloadPrefix"]}/",\
+    ""\
+  ).replaceFirst(\
+    ' "$FILE"
 
 # ==========================
 # 5. API 请求加代理
@@ -156,4 +234,3 @@ EOF
 fi
 
 echo -e "\n🎉 所有补丁已完成（包含URL顺序修复）"
-cat "$FILE"
