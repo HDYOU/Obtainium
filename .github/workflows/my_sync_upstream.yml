@@ -1,0 +1,53 @@
+name: Sync Upstream with Rebase
+
+# 定时任务：每天北京时间 02:00 执行
+on:
+  schedule:
+    - cron: '0 18 * * *'  # UTC 18点 = 北京时间次日02点
+  # 支持手动触发
+  workflow_dispatch:
+  watch:
+    types: [ started ]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current repo code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 拉取完整git历史，rebase必须
+          persist-credentials: false
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          # 配置上游仓库地址，替换成你的上游仓库
+          git remote add upstream https://github.com/ImranR98/Obtainium.git
+          git fetch upstream
+
+      - name: Rebase upstream to current branch
+        run: |
+          # 当前分支默认 main，可改成 master/dev
+          CURRENT_BRANCH=main
+          git checkout ${CURRENT_BRANCH}
+          # 以上游对应分支 rebase
+          git rebase upstream/${CURRENT_BRANCH}
+
+      - name: Push rebased code to origin
+        run: |
+          git push origin HEAD:main --force-with-lease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Delete workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          retain_days: 0
+          keep_minimum_runs: 3          

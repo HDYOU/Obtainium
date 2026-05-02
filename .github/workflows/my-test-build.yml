@@ -1,0 +1,125 @@
+name: my-test-build
+on:
+  workflow_dispatch:
+    inputs:
+      beta:
+        type: boolean
+        description: Is beta?
+      ssh:
+        description: 'SSH connection to Actions'
+        required: false
+        default: 'false'
+  watch:
+    types: [ started ]
+  push:
+    branches:
+      - master
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - '!.github/workflows/my-test-build.yml'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+    # ========== 运行独立补丁脚本 ==========
+      - name: Run all patches patch_github_proxy
+        run: chmod +x ./patch_github_proxy.sh && ./patch_github_proxy.sh
+
+      # ====================== 自动修改 1：allowInsecure 默认值 true ======================
+      - name: Modify source_provider.dart
+        run: |
+          FILE="lib/providers/source_provider.dart"
+          if [ -f "$FILE" ]; then
+            sed -i "s/defaultValue: false\s*\/\/ allowInsecure/defaultValue: true/" "$FILE"
+            sed -i "/'allowInsecure'/s/defaultValue: false/defaultValue: true/g" "$FILE"
+            echo "✅ 修改完成：allowInsecure 默认值已改为 true"
+            grep -n "allowInsecure" "$FILE"
+          else
+            echo "⚠️ $FILE 不存在，跳过"
+          fi
+
+      # ====================== 自动修改 2：AndroidManifest 添加 extractNativeLibs="true" ======================
+      - name: Add extractNativeLibs="true" to AndroidManifest.xml
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST" ]; then
+            # 给 MainActivity 添加 extractNativeLibs="true"
+            sed -i '/android:name=".MainActivity"/,/android:windowSoftInputMode/ {
+              /android:windowSoftInputMode="adjustResize"/i \
+                android:extractNativeLibs="true"
+            }' "$MANIFEST"
+            echo "✅ 已添加 android:extractNativeLibs=\"true\""
+            grep -A5 -B5 "extractNativeLibs" "$MANIFEST"
+          else
+            echo "⚠️ $MANIFEST 不存在，跳过"
+          fi
+     
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Flutter Doctor
+        run: flutter doctor -v
+
+      - name: Extract Version
+        id: extract_version
+        run: |
+          VERSION=$(grep -oP "^version: [^\+]+" pubspec.yaml | tail -c +10)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [ "${{ inputs.beta }}" == true ]; then BETA=true; else BETA=false; fi
+          echo "beta=$BETA" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build APKs
+        run: |
+          flutter build apk --split-per-abi --flavor normal
+          for file in build/app/outputs/flutter-apk/app-*normal*.apk*; do
+            mv "$file" "${file//-normal/}"
+          done
+          rm -f ./build/app/outputs/flutter-apk/*.sha1
+          ls -lh ./build/app/outputs/flutter-apk/
+
+      - name: Save Unsigned APKs
+        uses: actions/upload-artifact@v4
+        with:
+          path: build/app/outputs/flutter-apk/*
+
+      - name: Create Tag
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          custom_tag: ${{ steps.extract_version.outputs.tag }}
+          tag_prefix: ""
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.extract_version.outputs.tag }}
+          name: ${{ steps.extract_version.outputs.tag }}
+          prerelease: ${{ steps.extract_version.outputs.beta }}
+          files: build/app/outputs/flutter-apk/*
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete old workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          retain_days: 0
+          keep_minimum_runs: 3
