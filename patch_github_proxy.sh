@@ -75,7 +75,7 @@ sed -i "/l.startsWith('applicationId \"') ||/a\\
    " "$FILE"
 echo "fix appid"
 sed -i "/appId = appId.split/c\
-        appId = RegExp(r\"\"\"(applicationId|namespace)\\\s*[=]?\\\\s*[\"\']([^\"\'\\s]+)[\"\']\"\"\").firstMatch(appId)?.group(2) ??\"\", );\
+        appId = RegExp(r\"\"\"(applicationId|namespace)\\\\s*[=]?\\\\s*[\"\']([^\"\'\\\\s]+)[\"\']\"\"\").firstMatch(appId)?.group(2) ??\"\", );\
     " "$FILE"
 # ==========================
 # 2. 注释 APK 请求头
@@ -106,7 +106,7 @@ sed -i '/reqUrl.replaceFirst/a\
 # 5.0 设置 sourceConfigSettingValues
 # ==========================
 echo "⇒ 设置sourceConfigSettingValues"
-if ! grep -q "rateLimitErrorCheck" "$FILE"; then
+if ! grep -q "getSourceConfigSettingValues" "$FILE"; then
 sed -i '/rateLimitErrorCheck.*{/i\
   Future<Map> getSourceConfigSettingValues() {\
     var sp = SettingsProvider();\
@@ -121,8 +121,8 @@ fi
 # ==========================
 echo "⇒ API 请求自动加代理"
 #sed -i 's/apiUrl/&.notFoundAndAppendHost((await getSourceConfigSettingValues())\[\"GHProxyPrefix\"\])/g' "$FILE"
-sed -i 's/sourceRequest([^,]+/&.notFoundAndAppendHost((await getSourceConfigSettingValues())\[\"GHProxyPrefix\"\])/g' "$FILE"
-sed -i 's/Component(query)}\&per_page=100[^,]+/&.notFoundAndAppendHost((await getSourceConfigSettingValues())\[\"GHProxyPrefix\"\])/g' "$FILE"
+sed -i 's/sourceRequest\([^,]+/&.notFoundAndAppendHost((await getSourceConfigSettingValues())\[\"GHProxyPrefix\"\])/g' "$FILE"
+sed -i 's/Component\(query\)}\&per_page=100[^,]+/&.notFoundAndAppendHost((await getSourceConfigSettingValues())\[\"GHProxyPrefix\"\])/g' "$FILE"
 
 # ==========================
 # 6. 下载代理方法
